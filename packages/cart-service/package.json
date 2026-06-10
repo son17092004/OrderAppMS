@@ -1,0 +1,26 @@
+{
+  "name": "@food-ordering/cart-service",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main"
+  },
+  "dependencies": {
+    "@food-ordering/common": "*",
+    "@nestjs/common": "*",
+    "@nestjs/core": "*",
+    "@nestjs/platform-express": "*",
+    "@nestjs/config": "*",
+    "ioredis": "*",
+    "class-validator": "*",
+    "class-transformer": "*"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "*",
+    "@nestjs/schematics": "*",
+    "typescript": "*"
+  }
+}
