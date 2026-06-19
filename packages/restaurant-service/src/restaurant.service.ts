@@ -44,9 +44,9 @@ export class RestaurantService {
     return restaurant;
   }
 
-  async updateRestaurant(id: string, ownerId: string, updateData: Partial<Restaurant>): Promise<Restaurant> {
+  async updateRestaurant(id: string, ownerId: string, isAdmin: boolean, updateData: Partial<Restaurant>): Promise<Restaurant> {
     const restaurant = await this.findById(id);
-    if (restaurant.ownerId !== ownerId) {
+    if (!isAdmin && restaurant.ownerId !== ownerId) {
       throw new NotFoundException('You do not own this restaurant');
     }
 
@@ -55,9 +55,9 @@ export class RestaurantService {
     return updated!;
   }
 
-  async deleteRestaurant(id: string, ownerId: string): Promise<void> {
+  async deleteRestaurant(id: string, ownerId: string, isAdmin: boolean): Promise<void> {
     const restaurant = await this.findById(id);
-    if (restaurant.ownerId !== ownerId) {
+    if (!isAdmin && restaurant.ownerId !== ownerId) {
       throw new NotFoundException('You do not own this restaurant');
     }
 
@@ -65,9 +65,9 @@ export class RestaurantService {
     await this.invalidateMenuCache(id);
   }
 
-  async createCategory(restaurantId: string, ownerId: string, name: string): Promise<Category> {
+  async createCategory(restaurantId: string, ownerId: string, isAdmin: boolean, name: string): Promise<Category> {
     const restaurant = await this.findById(restaurantId);
-    if (restaurant.ownerId !== ownerId) {
+    if (!isAdmin && restaurant.ownerId !== ownerId) {
       throw new NotFoundException('You do not own this restaurant');
     }
 
@@ -76,9 +76,9 @@ export class RestaurantService {
     return category;
   }
 
-  async createFoodItem(restaurantId: string, categoryId: string, ownerId: string, name: string, description: string, price: number, images?: string[]): Promise<FoodItem> {
+  async createFoodItem(restaurantId: string, categoryId: string, ownerId: string, isAdmin: boolean, name: string, description: string, price: number, images?: string[]): Promise<FoodItem> {
     const restaurant = await this.findById(restaurantId);
-    if (restaurant.ownerId !== ownerId) {
+    if (!isAdmin && restaurant.ownerId !== ownerId) {
       throw new NotFoundException('You do not own this restaurant');
     }
 
@@ -116,7 +116,32 @@ export class RestaurantService {
     return foodItem;
   }
 
+  async deleteFoodItem(itemId: string, ownerId: string, isAdmin: boolean): Promise<void> {
+    const foodItem = await this.findFoodItemById(itemId);
+    const restaurant = await this.findById(foodItem.category.restaurantId);
+    if (!isAdmin && restaurant.ownerId !== ownerId) {
+      throw new NotFoundException('You do not own this restaurant');
+    }
+    await this.restaurantRepository.deleteFoodItem(itemId);
+    await this.invalidateMenuCache(restaurant.id);
+  }
+
   async updateFoodItemImages(id: string, images: string[]): Promise<FoodItem> {
-    return this.restaurantRepository.updateFoodItemImages(id, images);
+    const foodItem = await this.findFoodItemById(id);
+    const updated = await this.restaurantRepository.updateFoodItemImages(id, images);
+    await this.invalidateMenuCache(foodItem.category.restaurantId);
+    return updated;
+  }
+
+  async updateFoodItemAvailability(itemId: string, isAvailable: boolean, ownerId: string, isAdmin: boolean): Promise<FoodItem> {
+    const foodItem = await this.findFoodItemById(itemId);
+    const restaurant = await this.findById(foodItem.category.restaurantId);
+    if (!isAdmin && restaurant.ownerId !== ownerId) {
+      throw new NotFoundException('You do not own this restaurant');
+    }
+    const updated = await this.restaurantRepository.updateFoodItemAvailability(itemId, isAvailable);
+    await this.invalidateMenuCache(restaurant.id);
+    return updated;
   }
 }
+

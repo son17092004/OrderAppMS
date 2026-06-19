@@ -20,7 +20,7 @@ export class PaymentService {
 
     const payment = await this.paymentRepository.createPayment(orderId, userId, amount);
 
-    const isSuccess = amount <= 500.00;
+    const isSuccess = amount <= 1000000.00;
 
     if (isSuccess) {
       const transactionId = `TXN-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
@@ -36,7 +36,7 @@ export class PaymentService {
       this.kafkaClient.emit('PaymentCompleted', JSON.stringify(completedEvent));
       this.logger.log(`Published PaymentCompleted event for Order ${orderId}`, 'Payment');
     } else {
-      const reason = 'Insufficient funds / Credit limit of $500 exceeded';
+      const reason = 'Insufficient funds / Credit limit of 1,000,000 VND exceeded';
       await this.paymentRepository.updateStatus(payment.id, PaymentStatus.FAILED, undefined, reason);
       this.logger.error(`Payment failed for Order ${orderId}. Reason: ${reason}`, 'Payment');
 

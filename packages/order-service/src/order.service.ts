@@ -8,7 +8,8 @@ import {
   OrderConfirmedEvent, 
   OrderCancelledEvent, 
   NotificationRequestedEvent,
-  JsonLogger 
+  JsonLogger,
+  AuthenticatedUser
 } from '@food-ordering/common';
 
 @Injectable()
@@ -25,12 +26,12 @@ export class OrderService {
     this.logger.setContext(OrderService.name);
   }
 
-  async checkout(userId: string): Promise<Order> {
-    this.logger.log(`Initiating checkout for user ${userId}`, 'Checkout');
+  async checkout(userId: string, userEmail: string): Promise<Order> {
+    this.logger.log(`Initiating checkout for user ${userId} (${userEmail})`, 'Checkout');
 
     let cart;
     try {
-      const res = await fetch(`${this.cartServiceUrl}/api/v1/cart/internal/${userId}`);
+      const res = await fetch(`${this.cartServiceUrl}/v1/cart/internal/${userId}`);
       if (!res.ok) {
         throw new BadRequestException('Failed to retrieve cart details');
       }
@@ -43,9 +44,25 @@ export class OrderService {
       throw new BadRequestException('Shopping cart is empty');
     }
 
+    // Resolve restaurant name from restaurant-service
+    let restaurantName = 'Unknown Restaurant';
+    try {
+      const restRes = await fetch(`http://restaurant-service:3002/v1/restaurants/${cart.restaurantId}`);
+      if (restRes.ok) {
+        const restData = await restRes.json() as any;
+        if (restData && restData.data && restData.data.name) {
+          restaurantName = restData.data.name;
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Failed to resolve restaurant name during checkout: ${err.message}`);
+    }
+
     const order = await this.orderRepository.createOrder(
       userId,
+      userEmail,
       cart.restaurantId,
+      restaurantName,
       cart.totalPrice,
       cart.items
     );
@@ -53,7 +70,7 @@ export class OrderService {
     this.logger.log(`Order ${order.id} reserved with PENDING_PAYMENT status`, 'Checkout');
 
     try {
-      await fetch(`${this.cartServiceUrl}/api/v1/cart/internal/${userId}`, {
+      await fetch(`${this.cartServiceUrl}/v1/cart/internal/${userId}`, {
         method: 'DELETE',
       });
     } catch (err) {
@@ -88,7 +105,69 @@ export class OrderService {
   }
 
   async findByUser(userId: string): Promise<Order[]> {
+    this.logger.log(`Fetching orders for Customer ${userId}`, 'GetOrders');
     return this.orderRepository.findByUserId(userId);
+  }
+
+  async enrichOrders(orders: Order[]): Promise<Order[]> {
+    const userIdsWithNoEmail = [...new Set(
+      orders.filter(o => !o.userEmail).map(o => o.userId)
+    )];
+
+    const emailMap = new Map<string, string>();
+    if (userIdsWithNoEmail.length > 0) {
+      await Promise.all(
+        userIdsWithNoEmail.map(async (userId) => {
+          try {
+            const res = await fetch(`http://auth-service:3001/v1/auth/users/${userId}`);
+            if (res.ok) {
+              const data = await res.json() as any;
+              if (data && data.data && data.data.email) {
+                emailMap.set(userId, data.data.email);
+              }
+            }
+          } catch (err: any) {
+            this.logger.error(`Failed to resolve email for user ${userId}: ${err.message}`);
+          }
+        })
+      );
+    }
+
+    return orders.map(o => {
+      if (!o.userEmail && emailMap.has(o.userId)) {
+        o.userEmail = emailMap.get(o.userId)!;
+      }
+      return o;
+    });
+  }
+
+  async getManagementOrders(user: AuthenticatedUser): Promise<Order[]> {
+    if (user.role === 'ADMIN') {
+      this.logger.log(`Fetching all orders for Admin management`, 'GetManagementOrders');
+      const orders = await this.orderRepository.findAll();
+      return this.enrichOrders(orders);
+    }
+
+    if (user.role === 'RESTAURANT_OWNER') {
+      this.logger.log(`Fetching orders for Restaurant Owner management: ${user.id}`, 'GetManagementOrders');
+      try {
+        const res = await fetch('http://restaurant-service:3002/v1/restaurants');
+        if (!res.ok) {
+          throw new Error('Failed to fetch restaurants');
+        }
+        const data = await res.json() as any;
+        const ownedRestaurants = (data.data || []).filter((r: any) => r.ownerId === user.id);
+        const restaurantIds = ownedRestaurants.map((r: any) => r.id);
+        
+        const orders = await this.orderRepository.findByRestaurantIds(restaurantIds);
+        return this.enrichOrders(orders);
+      } catch (err: any) {
+        this.logger.error(`Failed to resolve owner restaurants for management: ${err.message}`);
+        return [];
+      }
+    }
+
+    return [];
   }
 
   async handlePaymentCompleted(orderId: string, paymentId: string, transactionId: string): Promise<void> {

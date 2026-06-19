@@ -9,12 +9,13 @@ import { UserRepository } from './repositories/user.repository';
 import { User } from './entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { JsonLogger } from '@food-ordering/common';
+import { KeycloakService } from './keycloak/keycloak.service';
+import { AuthGrpcController } from './grpc/auth.grpc.controller';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
+    ConfigModule.forRoot({ isGlobal: true }),
+
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -30,6 +31,7 @@ import { JsonLogger } from '@food-ordering/common';
       inject: [ConfigService],
     }),
     TypeOrmModule.forFeature([User, RefreshToken]),
+
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -39,12 +41,8 @@ import { JsonLogger } from '@food-ordering/common';
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController, HealthController],
-  providers: [
-    AuthService,
-    UserRepository,
-    JsonLogger,
-  ],
+  controllers: [AuthController, HealthController, AuthGrpcController],
+  providers: [AuthService, UserRepository, JsonLogger, KeycloakService],
   exports: [AuthService],
 })
 export class AuthModule {}

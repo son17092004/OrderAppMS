@@ -9,7 +9,7 @@ import { StandardResponse, HttpAuthGuard, RolesGuard, Roles, User, Authenticated
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
-  @Post()
+  @Post('checkout')
   @UseGuards(HttpAuthGuard, RolesGuard)
   @Roles('CUSTOMER')
   @ApiBearerAuth()
@@ -17,24 +17,35 @@ export class OrderController {
   @ApiResponse({ status: 201, description: 'Order placed successfully. Saga initiated (Payment and Notifications).' })
   @ApiResponse({ status: 400, description: 'Empty cart or invalid item quantities.' })
   async checkout(@User() user: AuthenticatedUser) {
-    const order = await this.orderService.checkout(user.id);
+    const order = await this.orderService.checkout(user.id, user.email);
     return StandardResponse.success('Order placed successfully. Processing payment...', order);
   }
 
   @Get()
   @UseGuards(HttpAuthGuard, RolesGuard)
-  @Roles('CUSTOMER')
+  @Roles('CUSTOMER', 'RESTAURANT_OWNER', 'ADMIN')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Retrieve order history of the current customer (Customer only)' })
+  @ApiOperation({ summary: 'Retrieve order history of the current user' })
   @ApiResponse({ status: 200, description: 'Order history retrieved successfully.' })
   async getHistory(@User() user: AuthenticatedUser) {
     const orders = await this.orderService.findByUser(user.id);
     return StandardResponse.success('Order history retrieved successfully', orders);
   }
 
+  @Get('management')
+  @UseGuards(HttpAuthGuard, RolesGuard)
+  @Roles('RESTAURANT_OWNER', 'ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Retrieve orders for management (Owner or Admin)' })
+  @ApiResponse({ status: 200, description: 'Management orders retrieved successfully.' })
+  async getManagementOrders(@User() user: AuthenticatedUser) {
+    const orders = await this.orderService.getManagementOrders(user);
+    return StandardResponse.success('Management orders retrieved successfully', orders);
+  }
+
   @Get(':id')
   @UseGuards(HttpAuthGuard, RolesGuard)
-  @Roles('CUSTOMER', 'ADMIN')
+  @Roles('CUSTOMER', 'RESTAURANT_OWNER', 'ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get details of a specific order by ID' })
   @ApiParam({ name: 'id', description: 'Order ID' })

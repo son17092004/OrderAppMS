@@ -14,7 +14,7 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column({ name: 'password_hash' })
+  @Column({ name: 'password_hash', nullable: true })
   passwordHash: string;
 
   @Column({
@@ -23,6 +23,15 @@ export class User {
     default: UserRole.CUSTOMER,
   })
   role: UserRole;
+
+  @Column({ name: 'keycloak_id', nullable: true, unique: true })
+  keycloakId: string | null;
+
+  @Column({ name: 'is_banned', default: false })
+  isBanned: boolean;
+
+  @Column({ name: 'last_login_at', nullable: true, type: 'timestamp' })
+  lastLoginAt: Date | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

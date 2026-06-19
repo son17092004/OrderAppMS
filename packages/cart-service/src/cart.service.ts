@@ -42,7 +42,7 @@ export class CartService {
   async addItem(userId: string, foodItemId: string, quantity: number): Promise<Cart> {
     let foodItem;
     try {
-      const res = await fetch(`${this.restaurantServiceUrl}/api/v1/restaurants/internal/items/${foodItemId}`);
+      const res = await fetch(`${this.restaurantServiceUrl}/v1/restaurants/internal/items/${foodItemId}`);
       if (!res.ok) {
         throw new NotFoundException('Food item not found in restaurant service');
       }

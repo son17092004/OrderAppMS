@@ -1,10 +1,32 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ShoppingCart, User, LogOut, LayoutDashboard, Utensils } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import api from '../api/client'
+
+function useCartCount() {
+  const { user } = useAuth()
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    if (!user) { setCount(0); return }
+    let cancelled = false
+    const fetch = () =>
+      api.get('/cart').then(r => {
+        if (!cancelled) setCount(r.data.data?.items?.length ?? 0)
+      }).catch(() => {})
+    fetch()
+    const id = setInterval(fetch, 30_000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [user])
+
+  return count
+}
 
 export default function Navbar() {
   const { user, logout } = useAuth()
   const nav = useNavigate()
+  const cartCount = useCartCount()
 
   const handleLogout = () => { logout(); nav('/login') }
 
@@ -16,9 +38,16 @@ export default function Navbar() {
         </NavLink>
         <div className="links">
           <NavLink to="/">Nhà hàng</NavLink>
-          {user && <NavLink to="/cart"><ShoppingCart size={15} style={{ marginRight: 4 }} />Giỏ hàng</NavLink>}
+          {user && (
+            <NavLink to="/cart" className="cart-link">
+              <ShoppingCart size={15} style={{ marginRight: 4 }} />Giỏ hàng
+              {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
+            </NavLink>
+          )}
           {user && <NavLink to="/orders">Đơn hàng</NavLink>}
-          {user?.role === 'ADMIN' && <NavLink to="/admin"><LayoutDashboard size={15} style={{ marginRight: 4 }} />Admin</NavLink>}
+          {(user?.role === 'ADMIN' || user?.role === 'RESTAURANT_OWNER') && (
+            <NavLink to="/admin"><LayoutDashboard size={15} style={{ marginRight: 4 }} />Quản trị</NavLink>
+          )}
           {!user ? (
             <>
               <NavLink to="/login">Đăng nhập</NavLink>

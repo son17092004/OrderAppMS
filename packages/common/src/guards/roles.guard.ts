@@ -13,13 +13,22 @@ export class RolesGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-    
+
     if (!requiredRoles) {
       return true;
     }
 
     const { user } = context.switchToHttp().getRequest();
-    if (!user || !requiredRoles.includes(user.role)) {
+    if (!user) {
+      throw new ForbiddenException('Access denied: insufficient permissions');
+    }
+
+    // ADMIN and RESTAURANT_OWNER bypass all role restrictions
+    if (user.role === 'ADMIN' || user.role === 'RESTAURANT_OWNER') {
+      return true;
+    }
+
+    if (!requiredRoles.includes(user.role)) {
       throw new ForbiddenException('Access denied: insufficient permissions');
     }
 

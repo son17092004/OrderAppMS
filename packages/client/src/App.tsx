@@ -12,12 +12,14 @@ import AdminPage from './pages/AdminPage'
 import ProfilePage from './pages/ProfilePage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+  if (loading) return <div className="spinner" />
   return user ? <>{children}</> : <Navigate to="/login" replace />
 }
 
 function AppRoutes() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+  if (loading) return <div className="spinner" />
   return (
     <>
       <Navbar />

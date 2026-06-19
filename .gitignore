@@ -43,5 +43,11 @@ Thumbs.db
 .claude/worktrees
 .claude/settings.local.json
 
+.vscode
 
 .env
+
+keycloak/realm-export.json
+
+implementation_plan.md
+prom

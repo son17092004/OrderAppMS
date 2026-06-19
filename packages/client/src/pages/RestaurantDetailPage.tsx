@@ -26,7 +26,7 @@ export default function RestaurantDetailPage() {
     if (!user) { toast.error('Vui lòng đăng nhập'); nav('/login'); return }
     setAddingItem(item.id)
     try {
-      await api.post('/cart/items', { foodItemId: item.id, quantity: 1 })
+      await api.post('/cart', { foodItemId: item.id, quantity: 1 })
       toast.success(`Đã thêm ${item.name} vào giỏ!`)
     } catch (err: any) {
       toast.error(err.response?.data?.message ?? 'Lỗi khi thêm vào giỏ')
@@ -52,7 +52,7 @@ export default function RestaurantDetailPage() {
             {allImages.length > 1 && (
               <div className="img-grid" style={{ marginTop: 8 }}>
                 {allImages.map((img, i) => (
-                  <img key={i} src={img} alt="" style={{ cursor: 'pointer', opacity: i === mainImg ? 1 : 0.55, border: i === mainImg ? '2px solid var(--accent)' : '' }}
+                  <img key={i} src={img} alt="" style={{ cursor: 'pointer', width: '100%', height: 80, objectFit: 'cover', borderRadius: 8, opacity: i === mainImg ? 1 : 0.55, border: i === mainImg ? '2px solid var(--accent)' : '' }}
                     onClick={() => setMainImg(i)} />
                 ))}
               </div>

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Order, OrderStatus } from '../entities/order.entity';
 import { OrderItem } from '../entities/order-item.entity';
 
@@ -15,13 +15,17 @@ export class OrderRepository {
 
   async createOrder(
     userId: string,
+    userEmail: string,
     restaurantId: string,
+    restaurantName: string,
     totalAmount: number,
     items: Array<{ foodItemId: string; name: string; price: number; quantity: number }>
   ): Promise<Order> {
     const order = this.typeOrmOrderRepository.create({
       userId,
+      userEmail,
       restaurantId,
+      restaurantName,
       totalAmount,
       status: OrderStatus.PENDING_PAYMENT,
     });
@@ -51,6 +55,22 @@ export class OrderRepository {
   async findByUserId(userId: string): Promise<Order[]> {
     return this.typeOrmOrderRepository.find({
       where: { userId },
+      relations: { items: true },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findAll(): Promise<Order[]> {
+    return this.typeOrmOrderRepository.find({
+      relations: { items: true },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findByRestaurantIds(restaurantIds: string[]): Promise<Order[]> {
+    if (restaurantIds.length === 0) return [];
+    return this.typeOrmOrderRepository.find({
+      where: { restaurantId: In(restaurantIds) },
       relations: { items: true },
       order: { createdAt: 'DESC' },
     });

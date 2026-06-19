@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody } from '@nestjs/swagger';
 import { PaymentService } from './payment.service';
@@ -34,15 +34,50 @@ export class PaymentController {
 
   @Get('order/:orderId')
   @UseGuards(HttpAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'RESTAURANT_OWNER')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get payment details for a specific order (Admin only)' })
+  @ApiOperation({ summary: 'Get payment details for a specific order (Admin/Owner only)' })
   @ApiParam({ name: 'orderId', description: 'Order ID' })
   @ApiResponse({ status: 200, description: 'Payment details retrieved successfully.' })
-  @ApiResponse({ status: 403, description: 'Forbidden: Requires ADMIN role.' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Not authorized.' })
   @ApiResponse({ status: 404, description: 'Payment record not found.' })
-  async getPaymentDetails(@Param('orderId') orderId: string) {
+  async getPaymentDetails(@Param('orderId') orderId: string, @User() user: AuthenticatedUser) {
     const payment = await this.paymentService.getPaymentByOrderId(orderId);
+    if (!payment) {
+      throw new NotFoundException('Payment record not found');
+    }
+
+    if (user.role === 'RESTAURANT_OWNER') {
+      try {
+        const orderRes = await fetch(`http://order-service:3004/v1/orders/${orderId}`, {
+          headers: {
+            'x-user-id': user.id,
+            'x-user-email': user.email,
+            'x-user-role': user.role,
+          }
+        });
+        const orderData = await orderRes.json() as any;
+        if (!orderRes.ok || !orderData.success) {
+          throw new ForbiddenException('You do not have access to this order details');
+        }
+
+        const restaurantId = orderData.data.restaurantId;
+
+        const resResponse = await fetch(`http://restaurant-service:3002/v1/restaurants/${restaurantId}`);
+        const resData = await resResponse.json() as any;
+        if (!resResponse.ok || !resData.success) {
+          throw new ForbiddenException('Failed to verify restaurant ownership');
+        }
+
+        if (resData.data.ownerId !== user.id) {
+          throw new ForbiddenException('You do not own the restaurant associated with this order');
+        }
+      } catch (err: any) {
+        if (err instanceof ForbiddenException) throw err;
+        throw new ForbiddenException(`Access validation error: ${err.message}`);
+      }
+    }
+
     return StandardResponse.success('Payment log retrieved successfully', payment);
   }
 

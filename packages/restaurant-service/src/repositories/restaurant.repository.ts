@@ -80,6 +80,15 @@ export class RestaurantRepository {
     return this.typeOrmFoodItemRepository.findOne({ where: { id }, relations: { category: true } }) as Promise<FoodItem>;
   }
 
+  async deleteFoodItem(id: string): Promise<void> {
+    await this.typeOrmFoodItemRepository.delete(id);
+  }
+
+  async updateFoodItemAvailability(id: string, isAvailable: boolean): Promise<FoodItem> {
+    await this.typeOrmFoodItemRepository.update(id, { isAvailable });
+    return this.typeOrmFoodItemRepository.findOne({ where: { id }, relations: { category: true } }) as Promise<FoodItem>;
+  }
+
   async getRestaurantMenu(restaurantId: string): Promise<Restaurant | null> {
     return this.typeOrmRestaurantRepository.findOne({
       where: { id: restaurantId },

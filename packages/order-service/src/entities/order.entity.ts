@@ -17,8 +17,14 @@ export class Order {
   @Column({ name: 'user_id' })
   userId: string;
 
+  @Column({ name: 'user_email', nullable: true })
+  userEmail: string;
+
   @Column({ name: 'restaurant_id' })
   restaurantId: string;
+
+  @Column({ name: 'restaurant_name', nullable: true })
+  restaurantName: string;
 
   @Column({
     type: 'varchar',
