@@ -1,108 +1,131 @@
-# FoodOrderingTemp
+# 🚀 Food Ordering & Delivery Microservices Platform
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+Hệ thống đặt món ăn trực tuyến xây dựng trên kiến trúc **Microservices hướng sự kiện (Event-Driven Architecture)** sử dụng hệ sinh thái **NestJS & React TypeScript**, được quản lý hiệu quả dưới dạng Monorepo bởi **Nx Workspace**.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+---
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/tutorials/npm-workspaces-tutorial?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+## 🏗️ Kiến trúc Hệ thống (System Architecture)
 
-## Run tasks
-
-To run tasks with Nx use:
-
-```sh
-npx nx <target> <project-name>
-```
-
-For example:
-
-```sh
-npx nx build myproject
-```
-
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
-
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Versioning and releasing
-
-To version and release the library use
+Hệ thống được thiết kế theo nguyên lý cô lập dịch vụ và dữ liệu chặt chẽ:
+*   **API Gateway**: Cửa ngõ duy nhất tiếp nhận request từ Client, chịu trách nhiệm định tuyến, gỡ lỗi CORS và phân luồng bảo mật.
+*   **Database per Service**: Mỗi service sở hữu cơ sở dữ liệu riêng biệt để đảm bảo tính độc lập dữ liệu tuyệt đối (PostgreSQL, MongoDB, Redis).
+*   **gRPC & HTTP/2**: Giao tiếp đồng bộ hiệu năng cao, độ trễ siêu thấp (<2ms) phục vụ xác thực Token giữa API Gateway và Auth Service.
+*   **Apache Kafka**: Hệ thống Event Broker chính phục vụ giao tiếp bất đồng bộ, điều phối giao dịch phân tán bằng **Saga Pattern (Choreography)** và gửi thông báo.
 
 ```
-npx nx release
+                  [ Client Browser (React) ]
+                             | (REST HTTP)
+                             v
+                     [ API Gateway ]
+                             |
+         +-------------------+-------------------+
+         | (gRPC Auth Validation)                | (REST HTTP Routing)
+         v                                       v
+   [ Auth Service ]                     [ Microservices Zone ]
+         | (PostgreSQL)            - Restaurant Svc (PostgreSQL)
+   [ Keycloak IAM ]                - Cart Service (Redis Cache)
+                                   - Order Service (PostgreSQL)
+                                         |
+                                         v (Kafka Events)
+                                  [ Apache Kafka ]
+                                         |
+                       +-----------------+-----------------+
+                       v                                   v
+             [ Payment Service ]                [ Notification Service ]
+               (PostgreSQL DB)                        (MongoDB DB)
 ```
 
-Pass `--dry-run` to see what would happen without actually releasing the library.
+---
 
-[Learn more about Nx release &raquo;](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## 🌟 Tính năng Nổi bật (Key Features)
 
-## Add new projects
+1.  **Single Sign-On (SSO) & RBAC**: Tích hợp với **Keycloak OpenID Connect (OIDC)** để xác thực tập trung. Hỗ trợ phân quyền phân vai chi tiết (`ADMIN`, `RESTAURANT_OWNER`, `CUSTOMER`).
+2.  **Saga Pattern (Choreography)**: Xử lý luồng đặt hàng và thanh toán bất đồng bộ. Tự động thực hiện hành động bù đắp (**Compensating Action**) để hủy đơn hàng (`CANCELLED`) nếu giao dịch thanh toán thất bại (vượt hạn mức 1.000.000đ).
+3.  **Real-time Notification Center**: Component quả chuông ở Header tự động lắng nghe và cập nhật thông báo kết quả thanh toán tức thời từ MongoDB, đi kèm hiệu ứng micro-animation đẹp mắt.
+4.  **Restaurant & Menu Management**: Quản trị viên phân quyền gán chủ sở hữu nhà hàng, chủ nhà hàng quản lý món ăn và thực đơn của riêng mình.
 
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
+---
 
-To install a new plugin you can use the `nx add` command. Here's an example of adding the React plugin:
-```sh
-npx nx add @nx/react
+## 📂 Cấu trúc Thư mục Monorepo (Nx Workspace)
+
+```text
+ktpm-ms-monorepo/
+├── packages/
+│   ├── api-gateway/          # Cổng API Gateway định tuyến (NestJS)
+│   ├── auth-service/         # Dịch vụ xác thực gRPC & Đồng bộ Keycloak (NestJS)
+│   ├── restaurant-service/   # Dịch vụ quản lý nhà hàng, thực đơn (NestJS)
+│   ├── cart-service/         # Dịch vụ lưu trữ giỏ hàng tạm thời (NestJS + Redis)
+│   ├── order-service/        # Dịch vụ quản lý đơn hàng & Saga (NestJS)
+│   ├── payment-service/      # Dịch vụ thanh toán tự động & Stripe Mock (NestJS)
+│   ├── notification-service/ # Dịch vụ log thông báo (NestJS + MongoDB)
+│   ├── common/               # Thư viện chia sẻ Decorators, Interceptors, Guards, DTOs
+│   └── client/               # Giao diện Frontend Single Page App (React + Vite)
+├── keycloak/                 # Cấu hình realm và client Keycloak
+├── docker-compose.yml        # File orchestrate hạ tầng (Postgres, Mongo, Redis, Kafka, Keycloak)
+└── package.json              # Quản lý dependencies toàn dự án
 ```
 
-Use the plugin's generator to create new projects. For example, to create a new React app or library:
+---
 
-```sh
-# Generate an app
-npx nx g @nx/react:app demo
+## 🌐 Danh sách Cổng Dịch vụ (Ports Allocation)
 
-# Generate a library
-npx nx g @nx/react:lib some-lib
+| Dịch vụ | Giao thức | Port | Cơ sở dữ liệu |
+| :--- | :--- | :--- | :--- |
+| **API Gateway** | REST HTTP | `3000` | Không có |
+| **Auth Service** | gRPC (internal) | `3001` / `50051` | PostgreSQL (`auth_db`) |
+| **Restaurant Service**| REST HTTP | `3002` | PostgreSQL (`restaurant_db`) |
+| **Cart Service** | REST HTTP | `3003` | Redis Cache (Port `6379`) |
+| **Order Service** | REST HTTP / Kafka | `3004` | PostgreSQL (`order_db`) |
+| **Payment Service** | REST HTTP / Kafka | `3005` | PostgreSQL (`payment_db`) |
+| **Notification Svc** | REST HTTP / Kafka | `3006` | MongoDB (`notification_db`) |
+| **React Client** | Web Page | `5173` | Không có |
+| **Keycloak IAM** | OIDC Identity | `8080` | Sử dụng PostgreSQL |
+
+---
+
+## 🛠️ Hướng dẫn Khởi chạy Hệ thống
+
+### Yêu cầu hệ thống:
+*   Đã cài đặt **Node.js** (v18 trở lên) & **npm**.
+*   Đã cài đặt **Docker & Docker Compose**.
+
+### Bước 1: Khởi động Hạ tầng Docker (Database, Kafka, Keycloak)
+Chạy lệnh sau tại thư mục gốc của dự án để khởi động toàn bộ các dịch vụ nền:
+```bash
+docker-compose up -d
+```
+*Đợi khoảng 1-2 phút để Keycloak, Kafka và các cơ sở dữ liệu khởi tạo cấu hình hoàn tất.*
+
+### Bước 2: Cài đặt Dependencies toàn Monorepo
+```bash
+npm install
 ```
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
-
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Set up CI!
-
-### Step 1
-
-To connect to Nx Cloud, run the following command:
-
-```sh
-npx nx connect
+### Bước 3: Khởi chạy các dịch vụ Backend & Frontend
+Bạn có thể khởi chạy nhanh toàn bộ các dịch vụ bằng lệnh Nx:
+```bash
+npx nx run-many --target=serve --all --parallel=10
 ```
 
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+Hoặc chạy độc lập từng service khi phát triển:
+*   Chạy Client: `npx nx serve client`
+*   Chạy API Gateway: `npx nx serve api-gateway`
+*   Chạy các Services backend: `npx nx serve <service-name>` (Ví dụ: `npx nx serve order-service`)
 
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+---
 
-### Step 2
+## 🧪 Chạy Kiểm thử (Testing)
 
-Use the following command to configure a CI workflow for your workspace:
+Hệ thống cấu hình sẵn các bộ test case Unit và Integration sử dụng **Jest**:
 
-```sh
-npx nx g ci-workflow
-```
+*   Chạy test cho toàn bộ hệ thống:
+    ```bash
+    npx nx run-many --target=test --all
+    ```
+*   Chạy test riêng cho một service cụ thể:
+    ```bash
+    npx nx test <service-name>
+    ```
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/getting-started/tutorials/npm-workspaces-tutorial?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+---
+*Chúc bạn có những trải nghiệm tuyệt vời cùng Food Ordering Microservices Platform!*
