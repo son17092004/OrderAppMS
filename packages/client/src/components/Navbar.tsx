@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { ShoppingCart, User, LogOut, LayoutDashboard, Utensils } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import api from '../api/client'
+import NotificationBell from './NotificationBell'
 
 function useCartCount() {
   const { user } = useAuth()
@@ -45,6 +46,7 @@ export default function Navbar() {
             </NavLink>
           )}
           {user && <NavLink to="/orders">Đơn hàng</NavLink>}
+          {user && <NotificationBell />}
           {(user?.role === 'ADMIN' || user?.role === 'RESTAURANT_OWNER') && (
             <NavLink to="/admin"><LayoutDashboard size={15} style={{ marginRight: 4 }} />Quản trị</NavLink>
           )}
