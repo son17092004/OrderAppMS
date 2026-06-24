@@ -5,8 +5,9 @@ export enum OrderStatus {
   PENDING_PAYMENT = 'PENDING_PAYMENT',
   PAID = 'PAID',
   CONFIRMED = 'CONFIRMED',
-  CANCELLED = 'CANCELLED',
+  SHIPPING = 'SHIPPING',
   COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
 }
 
 @Entity('orders')
@@ -25,6 +26,9 @@ export class Order {
 
   @Column({ name: 'restaurant_name', nullable: true })
   restaurantName: string;
+
+  @Column({ name: 'delivery_address', nullable: true })
+  deliveryAddress: string;
 
   @Column({
     type: 'varchar',

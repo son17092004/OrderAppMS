@@ -1,19 +1,28 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import api from '../api/client'
 import toast from 'react-hot-toast'
-import { Trash2, ShoppingBag, Minus, Plus, Store } from 'lucide-react'
+import { Trash2, ShoppingBag, Minus, Plus, Store, MapPin, ChevronDown } from 'lucide-react'
 
 interface CartItem { foodItemId: string; name: string; price: number; quantity: number }
 interface Cart { restaurantId: string; items: CartItem[]; totalPrice: number }
 
 export default function CartPage() {
+  const { user } = useAuth()
   const [cart, setCart] = useState<Cart | null>(null)
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
   const [restaurantName, setRestaurantName] = useState('')
   const nav = useNavigate()
+
+  // ─── Address State ───────────────────────────────────────────────────────────
+  const [addresses, setAddresses] = useState<string[]>([])
+  const [selectedAddress, setSelectedAddress] = useState('')
+  const [showAddrDropdown, setShowAddrDropdown] = useState(false)
+  const [customAddress, setCustomAddress] = useState('')
+  const [useCustom, setUseCustom] = useState(false)
 
   const fetchCart = () =>
     api.get('/cart').then(r => setCart(r.data.data)).catch(() => setCart(null)).finally(() => setLoading(false))
@@ -29,6 +38,23 @@ export default function CartPage() {
       setRestaurantName('')
     }
   }, [cart?.restaurantId])
+
+  // Tải địa chỉ đã lưu của user
+  useEffect(() => {
+    if (!user) return
+    api.get('/auth/profile')
+      .then(r => {
+        const addrs: string[] = r.data.data?.addresses ?? []
+        setAddresses(addrs)
+        if (addrs.length > 0) {
+          setSelectedAddress(addrs[0])
+          setUseCustom(false)
+        } else {
+          setUseCustom(true)
+        }
+      })
+      .catch(() => setUseCustom(true))
+  }, [user])
 
   const updateQty = async (foodItemId: string, quantity: number) => {
     setUpdatingId(foodItemId)
@@ -56,9 +82,14 @@ export default function CartPage() {
   }
 
   const checkout = async () => {
+    const deliveryAddress = useCustom ? customAddress.trim() : selectedAddress
+    if (!deliveryAddress) {
+      toast.error('Vui lòng chọn hoặc nhập địa chỉ giao hàng')
+      return
+    }
     setChecking(true)
     try {
-      const r = await api.post('/orders/checkout')
+      const r = await api.post('/orders/checkout', { deliveryAddress })
       const orderId = r.data.data.id
       toast.success('Đặt hàng thành công!')
       nav(`/payment/${orderId}`)
@@ -141,20 +172,126 @@ export default function CartPage() {
             </div>
           </div>
 
-          {/* Summary */}
-          <div className="cart-summary-box" style={{ width: 300, flexShrink: 0 }}>
+          {/* Summary + Address */}
+          <div className="cart-summary-box" style={{ width: 320, flexShrink: 0 }}>
             <h3 style={{ marginBottom: 16 }}>Tóm tắt đơn hàng</h3>
             <div className="flex justify-between mb-4">
               <span className="text-muted">Số món</span>
               <span>{cart.items.reduce((s, i) => s + i.quantity, 0)} món</span>
             </div>
             <div className="divider" />
-            <div className="flex justify-between mb-6">
+            <div className="flex justify-between mb-4">
               <span style={{ fontWeight: 600 }}>Tổng cộng</span>
               <span style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--accent)' }}>
                 {cart.totalPrice.toLocaleString('vi-VN')}đ
               </span>
             </div>
+
+            {/* ── Delivery Address Selection ─── */}
+            <div style={{
+              marginBottom: 16,
+              padding: '14px',
+              border: '1.5px solid var(--border)',
+              borderRadius: 12,
+              background: 'var(--bg-card)',
+            }}>
+              <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
+                <MapPin size={15} color="var(--accent)" />
+                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Địa chỉ giao hàng</span>
+              </div>
+
+              {addresses.length > 0 && (
+                <>
+                  {/* Toggle: saved vs custom */}
+                  <div className="flex gap-2" style={{ marginBottom: 10 }}>
+                    <button
+                      onClick={() => setUseCustom(false)}
+                      className={`btn btn-sm ${!useCustom ? 'btn-primary' : 'btn-ghost'}`}
+                      style={{ flex: 1, fontSize: '0.78rem', padding: '5px 0' }}
+                    >
+                      Địa chỉ đã lưu
+                    </button>
+                    <button
+                      onClick={() => setUseCustom(true)}
+                      className={`btn btn-sm ${useCustom ? 'btn-primary' : 'btn-ghost'}`}
+                      style={{ flex: 1, fontSize: '0.78rem', padding: '5px 0' }}
+                    >
+                      Nhập mới
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {!useCustom && addresses.length > 0 ? (
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setShowAddrDropdown(p => !p)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '8px 12px', borderRadius: 8, fontSize: '0.85rem',
+                      border: '1px solid var(--border)', background: 'var(--bg)',
+                      cursor: 'pointer', color: 'var(--text)', textAlign: 'left',
+                    }}
+                  >
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {selectedAddress || 'Chọn địa chỉ...'}
+                    </span>
+                    <ChevronDown size={14} style={{ flexShrink: 0, marginLeft: 6, opacity: 0.6 }} />
+                  </button>
+                  {showAddrDropdown && (
+                    <div style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                      background: 'var(--bg-card)', border: '1px solid var(--border)',
+                      borderRadius: 8, boxShadow: 'var(--shadow-lg)', marginTop: 4, overflow: 'hidden',
+                    }}>
+                      {addresses.map((addr, i) => (
+                        <div
+                          key={i}
+                          onClick={() => { setSelectedAddress(addr); setShowAddrDropdown(false) }}
+                          style={{
+                            padding: '10px 14px', cursor: 'pointer', fontSize: '0.85rem',
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            background: selectedAddress === addr ? 'rgba(var(--accent-rgb, 234,88,12),0.08)' : 'transparent',
+                            color: selectedAddress === addr ? 'var(--accent)' : 'var(--text)',
+                            transition: 'background 0.15s',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(var(--accent-rgb,234,88,12),0.06)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = selectedAddress === addr ? 'rgba(var(--accent-rgb,234,88,12),0.08)' : 'transparent')}
+                        >
+                          <MapPin size={13} color={selectedAddress === addr ? 'var(--accent)' : 'var(--muted)'} />
+                          {addr}
+                        </div>
+                      ))}
+                      <div
+                        onClick={() => { setUseCustom(true); setShowAddrDropdown(false) }}
+                        style={{
+                          padding: '10px 14px', cursor: 'pointer', fontSize: '0.82rem',
+                          color: 'var(--accent)', borderTop: '1px solid var(--border)',
+                          display: 'flex', alignItems: 'center', gap: 8,
+                        }}
+                      >
+                        <Plus size={13} /> Nhập địa chỉ mới...
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <input
+                    value={customAddress}
+                    onChange={e => setCustomAddress(e.target.value)}
+                    placeholder="Nhập địa chỉ giao hàng..."
+                    style={{ margin: 0, fontSize: '0.85rem', padding: '8px 12px' }}
+                  />
+                  {addresses.length === 0 && (
+                    <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 6, marginBottom: 0 }}>
+                      💡 Bạn có thể lưu địa chỉ trong <button onClick={() => nav('/profile')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0, fontSize: '0.75rem' }}>Hồ sơ cá nhân</button>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
             <button
               className="btn btn-primary w-full"
               onClick={checkout}

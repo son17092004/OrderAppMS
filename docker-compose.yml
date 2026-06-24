@@ -247,6 +247,27 @@ services:
       kafka:
         condition: service_healthy
 
+  delivery-service:
+    build:
+      context: .
+      dockerfile: packages/delivery-service/Dockerfile
+    container_name: delivery-service
+    ports:
+      - "3008:3008"
+    environment:
+      PORT: 3008
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: delivery_db
+      KAFKA_BROKERS: kafka:29092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
   api-gateway:
     build:
       context: .
@@ -263,6 +284,7 @@ services:
       ORDER_SERVICE_URL: http://order-service:3004
       PAYMENT_SERVICE_URL: http://payment-service:3005
       NOTIFICATION_SERVICE_URL: http://notification-service:3006
+      DELIVERY_SERVICE_URL: http://delivery-service:3008
       THROTTLE_TTL: 60
       THROTTLE_LIMIT: 100
     depends_on:
@@ -277,6 +299,8 @@ services:
       payment-service:
         condition: service_started
       notification-service:
+        condition: service_started
+      delivery-service:
         condition: service_started
 
 volumes:

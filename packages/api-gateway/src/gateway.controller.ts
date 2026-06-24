@@ -65,6 +65,7 @@ export class GatewayController implements OnModuleInit {
       orders:        configService.get('ORDER_SERVICE_URL',         'http://localhost:3004'),
       payments:      configService.get('PAYMENT_SERVICE_URL',       'http://localhost:3005'),
       notifications: configService.get('NOTIFICATION_SERVICE_URL',  'http://localhost:3006'),
+      deliveries:    configService.get('DELIVERY_SERVICE_URL',      'http://localhost:3008'),
     };
   }
 

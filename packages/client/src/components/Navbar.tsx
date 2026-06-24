@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { ShoppingCart, User, LogOut, LayoutDashboard, Utensils } from 'lucide-react'
+import { ShoppingCart, User, LogOut, LayoutDashboard, Utensils, Truck } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import api from '../api/client'
 import NotificationBell from './NotificationBell'
@@ -47,9 +47,15 @@ export default function Navbar() {
           )}
           {user && <NavLink to="/orders">Đơn hàng</NavLink>}
           {user && <NotificationBell />}
+          
+          {user?.role === 'DRIVER' && (
+            <NavLink to="/driver"><Truck size={15} style={{ marginRight: 4 }} />Giao hàng</NavLink>
+          )}
+          
           {(user?.role === 'ADMIN' || user?.role === 'RESTAURANT_OWNER') && (
             <NavLink to="/admin"><LayoutDashboard size={15} style={{ marginRight: 4 }} />Quản trị</NavLink>
           )}
+
           {!user ? (
             <>
               <NavLink to="/login">Đăng nhập</NavLink>

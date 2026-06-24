@@ -52,7 +52,7 @@ export class UserRepository {
   }
 
   async createUser(email: string, passwordHash: string, role: UserRole): Promise<User> {
-    const user = this.typeOrmUserRepository.create({ email, passwordHash, role });
+    const user = this.typeOrmUserRepository.create({ email, passwordHash, role, addresses: [] });
     return this.typeOrmUserRepository.save(user);
   }
 
@@ -63,6 +63,7 @@ export class UserRepository {
       role,
       passwordHash: null,
       lastLoginAt: new Date(),
+      addresses: [],
     });
     return this.typeOrmUserRepository.save(user);
   }
@@ -81,6 +82,13 @@ export class UserRepository {
     if (!user) throw new Error('User not found');
     user.role = role;
     return this.typeOrmUserRepository.save(user);
+  }
+
+  async updateAddresses(id: string, addresses: string[]): Promise<User> {
+    await this.typeOrmUserRepository.update(id, { addresses });
+    const user = await this.findById(id);
+    if (!user) throw new Error('User not found');
+    return user;
   }
 
   async setBanStatus(id: string, isBanned: boolean): Promise<User> {

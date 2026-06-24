@@ -253,6 +253,12 @@ export class AuthService {
     return this.userRepository.setBanStatus(userId, isBanned);
   }
 
+  async updateAddresses(userId: string, addresses: string[]): Promise<User> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    return this.userRepository.updateAddresses(userId, addresses);
+  }
+
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
   private invalidResult(

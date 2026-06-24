@@ -188,11 +188,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .skeleton-line.w-3-4 { width: 75%; }
 .skeleton-line.w-1-2 { width: 50%; }
 
-/* ─── Payment ─────────────────────────────────────────────── */
-.token-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-.token-chip { padding: 6px 14px; border-radius: 20px; background: var(--bg-input); border: 1px solid var(--border); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; font-family: monospace; }
-.token-chip:hover { border-color: var(--accent); color: var(--accent); }
-.token-chip.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+/* ─── Result Screen ───────────────────────────────────────── */
 .result-screen { text-align: center; padding: 24px 0; animation: bounce-in 0.5s ease; }
 .result-icon { margin: 0 auto 20px; display: block; }
 .countdown-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 16px; }
@@ -329,6 +325,11 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   animation: dropdown-fade-in 0.25s ease-out;
 }
 
+@keyframes dropdown-fade-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .dropdown-header {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
@@ -338,17 +339,17 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 }
 
 .dropdown-header h3 {
-  margin: 0;
   font-size: 0.95rem;
-  font-weight: 600;
+  margin: 0;
+  color: var(--text);
 }
 
 .count-tag {
-  background-color: var(--border);
-  font-size: 0.72rem;
+  background-color: var(--accent);
+  color: #fff;
+  font-size: 0.75rem;
   padding: 2px 8px;
   border-radius: 20px;
-  color: var(--muted);
 }
 
 .dropdown-body {
@@ -356,100 +357,183 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   overflow-y: auto;
 }
 
-.dropdown-body::-webkit-scrollbar {
-  width: 6px;
-}
-.dropdown-body::-webkit-scrollbar-thumb {
-  background-color: var(--border);
-  border-radius: 4px;
-}
-
-.empty-state {
-  padding: 40px 16px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
 .notif-item {
-  display: flex;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
+  display: flex;
+  gap: 12px;
   transition: background-color 0.2s;
-  position: relative;
 }
 
 .notif-item:hover {
   background-color: rgba(255, 255, 255, 0.03);
 }
 
-.notif-item.success {
-  border-left: 3px solid var(--success);
-}
-
-.notif-item.failed {
-  border-left: 3px solid var(--danger);
-}
-
 .notif-indicator {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background-color: var(--accent);
-  position: absolute;
-  top: 18px;
-  left: 6px;
-  display: none;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+
+.notif-item.success .notif-indicator {
+  background-color: #10b981;
+}
+
+.notif-item.failed .notif-indicator {
+  background-color: #ef4444;
 }
 
 .notif-content {
   flex: 1;
 }
 
-.notif-content p.message {
+.notif-content .message {
+  font-size: 0.85rem;
+  line-height: 1.4;
   margin: 0 0 6px 0;
-  font-size: 0.82rem;
-  line-height: 1.35;
-  color: var(--text);
+  color: var(--text-light);
 }
 
 .notif-content .meta {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 
 .channel-chip {
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: rgba(255, 255, 255, 0.08);
   padding: 1px 6px;
   border-radius: 4px;
-  text-transform: uppercase;
 }
 
-/* Animations */
-@keyframes bell-ring {
-  0% { transform: rotate(0); }
-  20% { transform: rotate(15deg); }
-  40% { transform: rotate(-15deg); }
-  60% { transform: rotate(10deg); }
-  80% { transform: rotate(-10deg); }
-  100% { transform: rotate(0); }
+/* ─── Stripe Modal Styling ──────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(10, 11, 15, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  animation: fade-in 0.25s ease both;
 }
 
-@keyframes dropdown-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  width: 100%;
+  max-width: 500px;
+  position: relative;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.stripe-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
 
+.stripe-close-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
 
+.card-element-container {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 14px;
+  margin-bottom: 24px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
 
+.card-element-container:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.stripe-submit-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 14px 20px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  width: 100%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font);
+  transition: all 0.2s;
+}
+
+.stripe-submit-btn:hover:not(:disabled) {
+  background: var(--accent-dark);
+  box-shadow: var(--shadow-accent);
+}
+
+.stripe-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Stripe Token Select Row ───────────────────────────────── */
+.token-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.token-chip {
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--muted);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.token-chip:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text);
+}
+
+.token-chip.selected {
+  background: rgba(249, 115, 22, 0.08);
+  border-color: var(--accent);
+  color: var(--accent);
+}

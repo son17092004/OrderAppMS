@@ -3,22 +3,24 @@ import { useParams, useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import toast from 'react-hot-toast'
 import { CreditCard, CheckCircle, XCircle, Package } from 'lucide-react'
+import StripePaymentModal from '../components/StripePaymentModal'
 
 const STRIPE_TOKENS = [
-  { label: 'Visa (thành công)', value: 'tok_visa', color: 'var(--success)', icon: '💳' },
-  { label: 'Mastercard (thành công)', value: 'tok_mastercard', color: 'var(--success)', icon: '💳' },
-  { label: 'Card Declined', value: 'tok_chargeDeclined', color: 'var(--danger)', icon: '🚫' },
-  { label: 'Expired Card', value: 'tok_chargeDeclinedExpiredCard', color: 'var(--danger)', icon: '⏰' },
+  { label: 'Nhập thẻ Stripe thật', value: 'real_stripe', color: 'var(--accent)', icon: '✨' },
+  { label: 'Visa (mô phỏng)', value: 'tok_visa', color: 'var(--success)', icon: '💳' },
+  { label: 'Mastercard (mô phỏng)', value: 'tok_mastercard', color: 'var(--success)', icon: '💳' },
+  { label: 'Từ chối thẻ (mô phỏng)', value: 'tok_chargeDeclined', color: 'var(--danger)', icon: '🚫' },
 ]
 
 export default function PaymentPage() {
   const { orderId } = useParams<{ orderId: string }>()
   const nav = useNavigate()
   const [order, setOrder] = useState<any>(null)
-  const [selectedToken, setSelectedToken] = useState('tok_visa')
+  const [selectedToken, setSelectedToken] = useState('real_stripe')
   const [paying, setPaying] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [countdown, setCountdown] = useState(5)
+  const [showStripeModal, setShowStripeModal] = useState(false)
 
   useEffect(() => {
     api.get(`/orders/${orderId}`).then(r => setOrder(r.data.data))
@@ -32,7 +34,7 @@ export default function PaymentPage() {
     return () => clearTimeout(timer)
   }, [result, countdown, nav])
 
-  const pay = async () => {
+  const handleMockPay = async () => {
     setPaying(true)
     try {
       const r = await api.post('/payments/stripe/charge', {
@@ -51,6 +53,37 @@ export default function PaymentPage() {
       toast.error(err.response?.data?.message ?? 'Lỗi thanh toán')
     } finally {
       setPaying(false)
+    }
+  }
+
+  const handleRealPaySuccess = async (stripeToken: string) => {
+    setShowStripeModal(false)
+    setPaying(true)
+    try {
+      const r = await api.post('/payments/stripe/charge', {
+        orderId,
+        stripeToken,
+        amount: order?.totalAmount,
+      })
+      setResult(r.data.data)
+      if (r.data.data.success) {
+        toast.success('Thanh toán thật thành công!')
+        setCountdown(5)
+      } else {
+        toast.error(r.data.data.reason || 'Thanh toán thật thất bại!')
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message ?? 'Lỗi thanh toán Stripe')
+    } finally {
+      setPaying(false)
+    }
+  }
+
+  const handlePayClick = () => {
+    if (selectedToken === 'real_stripe') {
+      setShowStripeModal(true)
+    } else {
+      handleMockPay()
     }
   }
 
@@ -74,6 +107,12 @@ export default function PaymentPage() {
             {order.status === 'PENDING_PAYMENT' ? 'Chờ thanh toán' : order.status === 'CONFIRMED' ? 'Đã xác nhận' : order.status}
           </span>
         </div>
+        {order.deliveryAddress && (
+          <div className="flex justify-between mb-2" style={{ alignItems: 'flex-start' }}>
+            <span className="text-muted text-sm" style={{ flexShrink: 0 }}>Địa chỉ giao</span>
+            <span className="text-sm" style={{ textAlign: 'right', maxWidth: '70%' }}>{order.deliveryAddress}</span>
+          </div>
+        )}
         {order.items?.length > 0 && (
           <div style={{ margin: '12px 0', padding: '12px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
             {order.items.map((item: any, i: number) => (
@@ -95,8 +134,8 @@ export default function PaymentPage() {
       {/* Payment Form */}
       {!result && order.status === 'PENDING_PAYMENT' && (
         <div className="card fade-in">
-          <h3><CreditCard size={16} style={{ marginRight: 8, display: 'inline', verticalAlign: 'middle' }} />Chọn phương thức (Mock Stripe)</h3>
-          <p className="text-muted text-sm" style={{ marginBottom: 16 }}>Chọn token để mô phỏng kết quả thanh toán:</p>
+          <h3><CreditCard size={16} style={{ marginRight: 8, display: 'inline', verticalAlign: 'middle' }} />Chọn phương thức thanh toán</h3>
+          <p className="text-muted text-sm" style={{ marginBottom: 16 }}>Chọn token mô phỏng hoặc thẻ test Stripe sandbox thật:</p>
           <div className="token-row">
             {STRIPE_TOKENS.map(t => (
               <div
@@ -110,12 +149,12 @@ export default function PaymentPage() {
             ))}
           </div>
           <div className="form-group mt-4">
-            <label>Token đã chọn</label>
-            <input readOnly value={selectedToken} className="font-mono" />
+            <label>Phương thức đã chọn</label>
+            <input readOnly value={selectedToken === 'real_stripe' ? 'Thẻ Stripe thật (Stripe Sandbox)' : selectedToken} className="font-mono" />
           </div>
           <button
             className="btn btn-primary w-full"
-            onClick={pay}
+            onClick={handlePayClick}
             disabled={paying}
             style={{ padding: '13px', fontSize: '1rem', marginTop: 4 }}
           >
@@ -163,6 +202,16 @@ export default function PaymentPage() {
           <p>Đơn hàng này không ở trạng thái chờ thanh toán.</p>
           <button className="btn btn-secondary mt-4" onClick={() => nav('/orders')}>Về đơn hàng</button>
         </div>
+      )}
+
+      {/* Stripe Real Card Modal */}
+      {showStripeModal && (
+        <StripePaymentModal
+          amount={order.totalAmount}
+          orderId={order.id}
+          onClose={() => setShowStripeModal(false)}
+          onSuccess={handleRealPaySuccess}
+        />
       )}
     </div>
   )

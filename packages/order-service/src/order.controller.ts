@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Param, UseGuards, Body } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { OrderService } from './order.service';
@@ -16,8 +16,8 @@ export class OrderController {
   @ApiOperation({ summary: 'Checkout and place an order from the current shopping cart (Customer only)' })
   @ApiResponse({ status: 201, description: 'Order placed successfully. Saga initiated (Payment and Notifications).' })
   @ApiResponse({ status: 400, description: 'Empty cart or invalid item quantities.' })
-  async checkout(@User() user: AuthenticatedUser) {
-    const order = await this.orderService.checkout(user.id, user.email);
+  async checkout(@User() user: AuthenticatedUser, @Body('deliveryAddress') deliveryAddress?: string) {
+    const order = await this.orderService.checkout(user.id, user.email, deliveryAddress);
     return StandardResponse.success('Order placed successfully. Processing payment...', order);
   }
 
@@ -43,6 +43,16 @@ export class OrderController {
     return StandardResponse.success('Management orders retrieved successfully', orders);
   }
 
+  @Get('internal/:id')
+  @ApiOperation({ summary: 'Get details of an order internally (No Auth required for microservice communication)' })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({ status: 200, description: 'Order details retrieved successfully.' })
+  @ApiResponse({ status: 404, description: 'Order not found.' })
+  async getDetailsInternal(@Param('id') id: string) {
+    const order = await this.orderService.findById(id);
+    return StandardResponse.success('Order details retrieved successfully', order);
+  }
+
   @Get(':id')
   @UseGuards(HttpAuthGuard, RolesGuard)
   @Roles('CUSTOMER', 'RESTAURANT_OWNER', 'ADMIN')
@@ -66,5 +76,23 @@ export class OrderController {
   async handlePaymentFailed(@Payload() message: any) {
     const data = typeof message === 'string' ? JSON.parse(message) : message;
     await this.orderService.handlePaymentFailed(data.orderId, data.reason);
+  }
+
+  @EventPattern('DeliveryAssigned')
+  async handleDeliveryAssigned(@Payload() message: any) {
+    const data = typeof message === 'string' ? JSON.parse(message) : message;
+    await this.orderService.handleDeliveryAssigned(data.orderId, data.driverId);
+  }
+
+  @EventPattern('DeliveryCompleted')
+  async handleDeliveryCompleted(@Payload() message: any) {
+    const data = typeof message === 'string' ? JSON.parse(message) : message;
+    await this.orderService.handleDeliveryCompleted(data.orderId, data.driverId);
+  }
+
+  @EventPattern('DeliveryFailed')
+  async handleDeliveryFailed(@Payload() message: any) {
+    const data = typeof message === 'string' ? JSON.parse(message) : message;
+    await this.orderService.handleDeliveryFailed(data.orderId, data.reason);
   }
 }

@@ -141,6 +141,8 @@ export class KeycloakService {
       role = UserRole.ADMIN;
     } else if (realmRoles.includes('RESTAURANT_OWNER')) {
       role = UserRole.RESTAURANT_OWNER;
+    } else if (realmRoles.includes('DRIVER')) {
+      role = UserRole.DRIVER;
     }
 
     return {

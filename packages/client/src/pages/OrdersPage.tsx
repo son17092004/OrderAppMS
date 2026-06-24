@@ -6,20 +6,22 @@ import { Package, RefreshCw, CreditCard } from 'lucide-react'
 interface OrderItem { name: string; price: number; quantity: number }
 interface Order { id: string; status: string; totalAmount: number; createdAt: string; items: OrderItem[]; restaurantId: string }
 
-type FilterType = 'ALL' | 'PENDING_PAYMENT' | 'CONFIRMED' | 'CANCELLED'
+type FilterType = 'ALL' | 'PENDING_PAYMENT' | 'CONFIRMED' | 'SHIPPING' | 'COMPLETED' | 'CANCELLED'
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING_PAYMENT: 'Chờ thanh toán',
   CONFIRMED: 'Đã xác nhận',
+  SHIPPING: 'Đang giao hàng',
+  COMPLETED: 'Hoàn thành',
   CANCELLED: 'Đã hủy',
-  DELIVERED: 'Đã giao',
 }
 
 const STATUS_BADGE: Record<string, string> = {
-  CONFIRMED: 'badge-green',
-  CANCELLED: 'badge-red',
   PENDING_PAYMENT: 'badge-yellow',
-  DELIVERED: 'badge-blue',
+  CONFIRMED: 'badge-green',
+  SHIPPING: 'badge-blue',
+  COMPLETED: 'badge-green',
+  CANCELLED: 'badge-red',
 }
 
 export default function OrdersPage() {
@@ -57,6 +59,8 @@ export default function OrdersPage() {
     ALL: orders.length,
     PENDING_PAYMENT: orders.filter(o => o.status === 'PENDING_PAYMENT').length,
     CONFIRMED: orders.filter(o => o.status === 'CONFIRMED').length,
+    SHIPPING: orders.filter(o => o.status === 'SHIPPING').length,
+    COMPLETED: orders.filter(o => o.status === 'COMPLETED').length,
     CANCELLED: orders.filter(o => o.status === 'CANCELLED').length,
   }), [orders])
 
@@ -77,14 +81,14 @@ export default function OrdersPage() {
 
       {/* Filter Tabs */}
       <div className="tab-bar">
-        {(['ALL', 'PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED'] as FilterType[]).map(f => (
+        {(['ALL', 'PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED'] as FilterType[]).map(f => (
           <button
             key={f}
             className={`tab-item ${filter === f ? 'active' : ''}`}
             onClick={() => setFilter(f)}
           >
             {f === 'ALL' ? 'Tất cả' : STATUS_LABELS[f]}
-            {counts[f] > 0 && (
+            {(counts[f] ?? 0) > 0 && (
               <span
                 className="badge"
                 style={{ marginLeft: 6, fontSize: '0.65rem', padding: '1px 6px', background: filter === f ? 'var(--accent)' : 'var(--bg-input)', color: filter === f ? '#fff' : 'var(--muted)' }}

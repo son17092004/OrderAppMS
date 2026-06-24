@@ -1,5 +1,5 @@
 {
-  "name": "@food-ordering/payment-service",
+  "name": "@food-ordering/delivery-service",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -20,8 +20,7 @@
     "@nestjs/typeorm": "*",
     "pg": "*",
     "class-validator": "*",
-    "class-transformer": "*",
-    "stripe": "^14.0.0"
+    "class-transformer": "*"
   },
   "devDependencies": {
     "@nestjs/cli": "*",

@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Put,
   Get,
   Query,
   Param,
@@ -79,11 +80,39 @@ export class AuthController {
   @Get('profile')
   @UseGuards(HttpAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiOperation({ summary: 'Get current user profile with addresses' })
   @ApiResponse({ status: 200, description: 'Profile retrieved.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   async getProfile(@User() user: AuthenticatedUser) {
-    return StandardResponse.success('Profile retrieved successfully', user);
+    const dbUser = await this.authService.findById(user.id);
+    if (!dbUser) {
+      throw new NotFoundException('User not found');
+    }
+    return StandardResponse.success('Profile retrieved successfully', {
+      id: dbUser.id,
+      email: dbUser.email,
+      role: dbUser.role,
+      addresses: dbUser.addresses || [],
+    });
+  }
+
+  @Put('profile/addresses')
+  @UseGuards(HttpAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update delivery addresses for current user' })
+  @ApiResponse({ status: 200, description: 'Addresses updated successfully.' })
+  @ApiResponse({ status: 400, description: 'Addresses must be an array of strings.' })
+  async updateAddresses(@User() user: AuthenticatedUser, @Body('addresses') addresses: string[]) {
+    if (!Array.isArray(addresses)) {
+      throw new BadRequestException('Addresses must be an array of strings');
+    }
+    const updated = await this.authService.updateAddresses(user.id, addresses);
+    return StandardResponse.success('Addresses updated successfully', {
+      id: updated.id,
+      email: updated.email,
+      role: updated.role,
+      addresses: updated.addresses || [],
+    });
   }
 
   // ─── Internal / Admin Endpoints ──────────────────────────────────────────────
@@ -123,6 +152,7 @@ export class AuthController {
       id: user.id,
       email: user.email,
       role: user.role,
+      addresses: user.addresses || [],
     });
   }
 
@@ -135,6 +165,7 @@ export class AuthController {
       id: user.id,
       email: user.email,
       role: user.role,
+      addresses: user.addresses || [],
     });
   }
 
@@ -149,64 +180,6 @@ export class AuthController {
       id: user.id,
       email: user.email,
       role: user.role,
-    });
-  }
-
-  @Post('users/:userId/role')
-  @UseGuards(HttpAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update user role (Admin only)' })
-  async updateUserRole(
-    @Param('userId') userId: string,
-    @Body('role') role: string,
-  ) {
-    const { UserRole } = await import('./entities/user.entity');
-    const mappedRole = (UserRole as any)[role];
-    if (!mappedRole) throw new BadRequestException('Invalid role');
-    const user = await this.authService.updateUserRole(userId, mappedRole);
-    return StandardResponse.success('User role updated successfully', {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    });
-  }
-
-  @Post('ban/:userId')
-  @UseGuards(HttpAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Ban or unban a user (Admin only)' })
-  @ApiResponse({ status: 200, description: 'User ban status updated.' })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  @ApiResponse({ status: 403, description: 'Forbidden — Admin only.' })
-  async banUser(
-    @Param('userId') userId: string,
-    @Body('isBanned') isBanned: boolean,
-  ) {
-    const user = await this.authService.banUser(userId, isBanned);
-    return StandardResponse.success(
-      isBanned ? 'User has been banned' : 'User has been unbanned',
-      { id: user.id, email: user.email, role: user.role, isBanned: user.isBanned },
-    );
-  }
-
-  @Post('keycloak/sync')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Sync a Keycloak user into local DB after first login' })
-  async syncKeycloakUser(
-    @Body('keycloakId') keycloakId: string,
-    @Body('email') email: string,
-    @Body('role') role: string,
-  ) {
-    const { UserRole } = await import('./entities/user.entity');
-    const mappedRole = (UserRole as any)[role] ?? UserRole.CUSTOMER;
-    const user = await this.authService.syncKeycloakUser(keycloakId, email, mappedRole);
-    return StandardResponse.success('User synced', {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      keycloakId: user.keycloakId,
     });
   }
 }

@@ -10,6 +10,7 @@ import OrdersPage from './pages/OrdersPage'
 import PaymentPage from './pages/PaymentPage'
 import AdminPage from './pages/AdminPage'
 import ProfilePage from './pages/ProfilePage'
+import DriverPage from './pages/DriverPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -33,6 +34,7 @@ function AppRoutes() {
         <Route path="/payment/:orderId" element={<PrivateRoute><PaymentPage /></PrivateRoute>} />
         <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
         <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} />
+        <Route path="/driver" element={<PrivateRoute><DriverPage /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </>

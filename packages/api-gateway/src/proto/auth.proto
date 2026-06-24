@@ -14,7 +14,7 @@ service AuthService {
 }
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
-enum TokenType {
+enum TokenType {  
   INTERNAL  = 0;
   KEYCLOAK  = 1;
 }

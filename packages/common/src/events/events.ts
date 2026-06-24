@@ -5,6 +5,9 @@ export enum EventPattern {
   OrderConfirmed = 'OrderConfirmed',
   OrderCancelled = 'OrderCancelled',
   NotificationRequested = 'NotificationRequested',
+  DeliveryAssigned = 'DeliveryAssigned',
+  DeliveryCompleted = 'DeliveryCompleted',
+  DeliveryFailed = 'DeliveryFailed',
 }
 
 export abstract class BaseEvent {
@@ -27,6 +30,9 @@ export class OrderCreatedEvent extends BaseEvent {
     public readonly userId: string,
     public readonly restaurantId: string,
     public readonly amount: number,
+    public readonly restaurantName: string,
+    public readonly userEmail: string,
+    public readonly deliveryAddress: string,
     public readonly items: Array<{
       foodItemId: string;
       name: string;
@@ -94,6 +100,39 @@ export class NotificationRequestedEvent extends BaseEvent {
     public readonly orderId: string,
     public readonly type: 'EMAIL' | 'SMS',
     public readonly content: string
+  ) {
+    super();
+    this.freeze();
+  }
+}
+
+export class DeliveryAssignedEvent extends BaseEvent {
+  readonly pattern = EventPattern.DeliveryAssigned;
+  constructor(
+    public readonly orderId: string,
+    public readonly driverId: string
+  ) {
+    super();
+    this.freeze();
+  }
+}
+
+export class DeliveryCompletedEvent extends BaseEvent {
+  readonly pattern = EventPattern.DeliveryCompleted;
+  constructor(
+    public readonly orderId: string,
+    public readonly driverId: string
+  ) {
+    super();
+    this.freeze();
+  }
+}
+
+export class DeliveryFailedEvent extends BaseEvent {
+  readonly pattern = EventPattern.DeliveryFailed;
+  constructor(
+    public readonly orderId: string,
+    public readonly reason: string
   ) {
     super();
     this.freeze();

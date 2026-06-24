@@ -19,7 +19,8 @@ export class OrderRepository {
     restaurantId: string,
     restaurantName: string,
     totalAmount: number,
-    items: Array<{ foodItemId: string; name: string; price: number; quantity: number }>
+    items: Array<{ foodItemId: string; name: string; price: number; quantity: number }>,
+    deliveryAddress?: string
   ): Promise<Order> {
     const order = this.typeOrmOrderRepository.create({
       userId,
@@ -27,6 +28,7 @@ export class OrderRepository {
       restaurantId,
       restaurantName,
       totalAmount,
+      deliveryAddress: deliveryAddress || 'No Address Provided',
       status: OrderStatus.PENDING_PAYMENT,
     });
 

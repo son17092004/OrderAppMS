@@ -26,8 +26,8 @@ export class OrderService {
     this.logger.setContext(OrderService.name);
   }
 
-  async checkout(userId: string, userEmail: string): Promise<Order> {
-    this.logger.log(`Initiating checkout for user ${userId} (${userEmail})`, 'Checkout');
+  async checkout(userId: string, userEmail: string, deliveryAddress?: string): Promise<Order> {
+    this.logger.log(`Initiating checkout for user ${userId} (${userEmail}) with address: ${deliveryAddress}`, 'Checkout');
 
     let cart;
     try {
@@ -64,7 +64,8 @@ export class OrderService {
       cart.restaurantId,
       restaurantName,
       cart.totalPrice,
-      cart.items
+      cart.items,
+      deliveryAddress
     );
 
     this.logger.log(`Order ${order.id} reserved with PENDING_PAYMENT status`, 'Checkout');
@@ -82,6 +83,9 @@ export class OrderService {
       order.userId,
       order.restaurantId,
       order.totalAmount,
+      order.restaurantName || 'Unknown Restaurant',
+      order.userEmail || 'Unknown User',
+      order.deliveryAddress || 'No Address Provided',
       order.items.map(item => ({
         foodItemId: item.foodItemId,
         name: item.name,
@@ -195,7 +199,7 @@ export class OrderService {
       order.userId,
       order.id,
       'EMAIL',
-      `Your payment of $${order.totalAmount} was successful! Your order has been confirmed.`
+      `Đơn hàng #${order.id.slice(0, 8).toUpperCase()} đã được xác nhận! Thanh toán ${order.totalAmount.toLocaleString('vi-VN')}đ thành công.`
     );
     this.kafkaClient.emit('NotificationRequested', JSON.stringify(notificationEvent));
     this.logger.log(`Published NotificationRequested event for Order ${orderId}`, 'Saga');
@@ -227,6 +231,90 @@ export class OrderService {
       order.id,
       'EMAIL',
       `Your order could not be placed because payment failed. Reason: ${reason}`
+    );
+    this.kafkaClient.emit('NotificationRequested', JSON.stringify(notificationEvent));
+    this.logger.log(`Published NotificationRequested event for Order ${orderId}`, 'Saga');
+  }
+
+  async handleDeliveryAssigned(orderId: string, driverId: string): Promise<void> {
+    this.logger.log(`Consuming DeliveryAssigned event for Order ${orderId} by Driver ${driverId}`, 'Saga');
+    const order = await this.orderRepository.findById(orderId);
+    if (!order) {
+      this.logger.error(`Order ${orderId} not found during DeliveryAssigned processing`);
+      return;
+    }
+
+    if (order.status !== OrderStatus.CONFIRMED) {
+      this.logger.warn(`Order ${orderId} has status ${order.status}, skipping SHIPPING update.`);
+      return;
+    }
+
+    await this.orderRepository.updateStatus(orderId, OrderStatus.SHIPPING);
+    this.logger.log(`Order ${orderId} status updated to SHIPPING (Driver ${driverId} assigned)`, 'Saga');
+
+    const notificationEvent = new NotificationRequestedEvent(
+      order.userId,
+      order.id,
+      'EMAIL',
+      `Tài xế đã nhận đơn hàng của bạn và đang trên đường giao! Mã đơn: #${order.id.slice(0, 8).toUpperCase()}`
+    );
+    this.kafkaClient.emit('NotificationRequested', JSON.stringify(notificationEvent));
+    this.logger.log(`Published NotificationRequested (shipping) event for Order ${orderId}`, 'Saga');
+  }
+
+  async handleDeliveryCompleted(orderId: string, driverId: string): Promise<void> {
+    this.logger.log(`Consuming DeliveryCompleted event for Order ${orderId}`, 'Saga');
+    const order = await this.orderRepository.findById(orderId);
+    if (!order) {
+      this.logger.error(`Order ${orderId} not found during DeliveryCompleted processing`);
+      return;
+    }
+
+    // Guard: chỉ tiếp tục nếu đơn đang ở trạng thái SHIPPING
+    if (order.status !== OrderStatus.SHIPPING) {
+      this.logger.warn(`Order ${orderId} is in status ${order.status} (expected SHIPPING). Skipping COMPLETED update to avoid idempotency violation.`, 'Saga');
+      return;
+    }
+
+    await this.orderRepository.updateStatus(orderId, OrderStatus.COMPLETED);
+    this.logger.log(`Order ${orderId} status updated to COMPLETED`, 'Saga');
+
+    const notificationEvent = new NotificationRequestedEvent(
+      order.userId,
+      order.id,
+      'EMAIL',
+      `Đơn hàng #${order.id.slice(0, 8).toUpperCase()} đã được giao thành công! Cảm ơn bạn đã tin tưởng dịch vụ của chúng tôi.`
+    );
+    this.kafkaClient.emit('NotificationRequested', JSON.stringify(notificationEvent));
+    this.logger.log(`Published NotificationRequested event for Order ${orderId}`, 'Saga');
+  }
+
+  async handleDeliveryFailed(orderId: string, reason: string): Promise<void> {
+    this.logger.log(`Consuming DeliveryFailed event for Order ${orderId}. Reason: ${reason}`, 'Saga');
+    const order = await this.orderRepository.findById(orderId);
+    if (!order) {
+      this.logger.error(`Order ${orderId} not found during DeliveryFailed processing`);
+      return;
+    }
+
+    // Guard: chỉ tiếp tục nếu đơn đang ở trạng thái SHIPPING
+    if (order.status !== OrderStatus.SHIPPING) {
+      this.logger.warn(`Order ${orderId} is in status ${order.status} (expected SHIPPING). Skipping CANCELLED update to avoid late event overwrite.`, 'Saga');
+      return;
+    }
+
+    await this.orderRepository.updateStatus(orderId, OrderStatus.CANCELLED);
+    this.logger.log(`Compensation executed: Order ${orderId} cancelled due to delivery failure`, 'Saga');
+
+    const cancelledEvent = new OrderCancelledEvent(order.id, reason);
+    this.kafkaClient.emit('OrderCancelled', JSON.stringify(cancelledEvent));
+    this.logger.log(`Published OrderCancelled event for Order ${orderId}`, 'Saga');
+
+    const notificationEvent = new NotificationRequestedEvent(
+      order.userId,
+      order.id,
+      'EMAIL',
+      `Đơn hàng #${order.id.slice(0, 8).toUpperCase()} bị hủy do giao hàng thất bại. Lý do: ${reason}`
     );
     this.kafkaClient.emit('NotificationRequested', JSON.stringify(notificationEvent));
     this.logger.log(`Published NotificationRequested event for Order ${orderId}`, 'Saga');

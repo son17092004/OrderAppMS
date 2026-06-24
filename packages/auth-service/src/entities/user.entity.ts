@@ -4,6 +4,7 @@ export enum UserRole {
   CUSTOMER = 'CUSTOMER',
   RESTAURANT_OWNER = 'RESTAURANT_OWNER',
   ADMIN = 'ADMIN',
+  DRIVER = 'DRIVER',
 }
 
 @Entity('users')
@@ -32,6 +33,9 @@ export class User {
 
   @Column({ name: 'last_login_at', nullable: true, type: 'timestamp' })
   lastLoginAt: Date | null;
+
+  @Column({ type: 'jsonb', nullable: true, default: [] })
+  addresses: string[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

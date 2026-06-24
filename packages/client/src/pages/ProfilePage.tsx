@@ -2,35 +2,56 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../api/client'
-import { User, Mail, Shield, Hash, CreditCard, Package, Clock, LogOut } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { User, Mail, Shield, Hash, CreditCard, Package, Clock, LogOut, MapPin, Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 
 interface Order { id: string; status: string; totalAmount: number; createdAt: string; items: any[] }
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING_PAYMENT: 'Chờ thanh toán',
   CONFIRMED: 'Đã xác nhận',
+  SHIPPING: 'Đang giao hàng',
+  COMPLETED: 'Hoàn thành',
   CANCELLED: 'Đã hủy',
 }
 const STATUS_BADGE: Record<string, string> = {
-  CONFIRMED: 'badge-green',
-  CANCELLED: 'badge-red',
   PENDING_PAYMENT: 'badge-yellow',
+  CONFIRMED: 'badge-green',
+  SHIPPING: 'badge-blue',
+  COMPLETED: 'badge-green',
+  CANCELLED: 'badge-red',
 }
-
 const ROLE_COLORS: Record<string, string> = {
   ADMIN: 'badge-red',
   RESTAURANT_OWNER: 'badge-orange',
   CUSTOMER: 'badge-blue',
+  DRIVER: 'badge-purple',
 }
 
 export default function ProfilePage() {
   const { user, logout } = useAuth()
   const nav = useNavigate()
+
   const [orders, setOrders] = useState<Order[]>([])
   const [loadingOrders, setLoadingOrders] = useState(true)
 
+  // ─── Address Management State ───────────────────────────────────────────────
+  const [addresses, setAddresses] = useState<string[]>([])
+  const [loadingAddr, setLoadingAddr] = useState(true)
+  const [editingIdx, setEditingIdx] = useState<number | null>(null)
+  const [editingVal, setEditingVal] = useState('')
+  const [addingNew, setAddingNew] = useState(false)
+  const [newAddr, setNewAddr] = useState('')
+  const [savingAddr, setSavingAddr] = useState(false)
+
   useEffect(() => {
     api.get('/orders').then(r => setOrders(r.data.data ?? [])).finally(() => setLoadingOrders(false))
+  }, [])
+
+  useEffect(() => {
+    api.get('/auth/profile')
+      .then(r => setAddresses(r.data.data?.addresses ?? []))
+      .finally(() => setLoadingAddr(false))
   }, [])
 
   if (!user) return null
@@ -41,11 +62,47 @@ export default function ProfilePage() {
 
   const handleLogout = () => { logout(); nav('/login') }
 
+  const saveAddresses = async (updated: string[]) => {
+    setSavingAddr(true)
+    try {
+      const r = await api.put('/auth/profile/addresses', { addresses: updated })
+      setAddresses(r.data.data?.addresses ?? updated)
+      toast.success('Đã lưu địa chỉ thành công')
+    } catch (err: any) {
+      toast.error(err.response?.data?.message ?? 'Lỗi khi lưu địa chỉ')
+    } finally {
+      setSavingAddr(false)
+    }
+  }
+
+  const handleAddAddress = async () => {
+    const trimmed = newAddr.trim()
+    if (!trimmed) return toast.error('Vui lòng nhập địa chỉ')
+    const updated = [...addresses, trimmed]
+    await saveAddresses(updated)
+    setNewAddr('')
+    setAddingNew(false)
+  }
+
+  const handleEditSave = async (idx: number) => {
+    const trimmed = editingVal.trim()
+    if (!trimmed) return toast.error('Địa chỉ không được để trống')
+    const updated = addresses.map((a, i) => (i === idx ? trimmed : a))
+    await saveAddresses(updated)
+    setEditingIdx(null)
+  }
+
+  const handleDelete = async (idx: number) => {
+    if (!confirm('Xóa địa chỉ này?')) return
+    const updated = addresses.filter((_, i) => i !== idx)
+    await saveAddresses(updated)
+  }
+
   return (
-    <div className="page" style={{ maxWidth: 640, margin: '0 auto' }}>
+    <div className="page" style={{ maxWidth: 680, margin: '0 auto' }}>
       <h1 style={{ marginBottom: 24 }}>Hồ sơ cá nhân</h1>
 
-      {/* Avatar + Info */}
+      {/* ── Avatar + Info ─────────────────────────────────────────────────── */}
       <div className="card section fade-in">
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 24 }}>
           <div style={{
@@ -82,7 +139,145 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      {/* Stats */}
+      {/* ── Delivery Addresses ────────────────────────────────────────────── */}
+      <div className="card section fade-in" style={{ marginTop: 4 }}>
+        <div className="flex justify-between items-center" style={{ marginBottom: 16 }}>
+          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <MapPin size={18} color="var(--accent)" />
+            Địa chỉ giao hàng
+          </h3>
+          {!addingNew && (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => setAddingNew(true)}
+              style={{ gap: 4 }}
+            >
+              <Plus size={14} /> Thêm địa chỉ
+            </button>
+          )}
+        </div>
+
+        {loadingAddr ? (
+          <div className="spinner" />
+        ) : (
+          <>
+            {addresses.length === 0 && !addingNew && (
+              <div style={{
+                textAlign: 'center', padding: '28px 16px',
+                border: '1.5px dashed var(--border)', borderRadius: 12,
+                color: 'var(--muted)',
+              }}>
+                <MapPin size={32} strokeWidth={1.2} style={{ marginBottom: 8, opacity: 0.5 }} />
+                <p style={{ margin: 0, fontSize: '0.9rem' }}>Chưa có địa chỉ nào. Thêm địa chỉ để đặt hàng nhanh hơn!</p>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {addresses.map((addr, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 16px',
+                    border: '1px solid var(--border)', borderRadius: 10,
+                    background: 'var(--bg-card)',
+                    transition: 'border-color 0.2s',
+                  }}
+                >
+                  <MapPin size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
+                  {editingIdx === idx ? (
+                    <>
+                      <input
+                        value={editingVal}
+                        onChange={e => setEditingVal(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleEditSave(idx); if (e.key === 'Escape') setEditingIdx(null) }}
+                        autoFocus
+                        style={{ flex: 1, margin: 0, padding: '4px 8px', fontSize: '0.9rem' }}
+                        placeholder="Nhập địa chỉ..."
+                      />
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => handleEditSave(idx)}
+                        disabled={savingAddr}
+                        style={{ color: 'var(--success)', padding: '4px 8px' }}
+                        title="Lưu"
+                      >
+                        {savingAddr ? <span className="spinner spinner-sm" /> : <Check size={15} />}
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setEditingIdx(null)}
+                        style={{ color: 'var(--muted)', padding: '4px 8px' }}
+                        title="Hủy"
+                      >
+                        <X size={15} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ flex: 1, fontSize: '0.9rem' }}>{addr}</span>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => { setEditingIdx(idx); setEditingVal(addr) }}
+                        style={{ color: 'var(--muted)', padding: '4px 8px' }}
+                        title="Sửa"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => handleDelete(idx)}
+                        disabled={savingAddr}
+                        style={{ color: 'var(--danger)', padding: '4px 8px' }}
+                        title="Xóa"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Add new address input */}
+            {addingNew && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '12px 16px', marginTop: addresses.length > 0 ? 10 : 0,
+                border: '1.5px solid var(--accent)', borderRadius: 10,
+                background: 'rgba(var(--accent-rgb, 234, 88, 12), 0.04)',
+              }}>
+                <MapPin size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
+                <input
+                  value={newAddr}
+                  onChange={e => setNewAddr(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddAddress(); if (e.key === 'Escape') { setAddingNew(false); setNewAddr('') } }}
+                  autoFocus
+                  placeholder="VD: 123 Lê Lợi, Quận 1, TP.HCM"
+                  style={{ flex: 1, margin: 0, padding: '4px 8px', fontSize: '0.9rem' }}
+                />
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={handleAddAddress}
+                  disabled={savingAddr || !newAddr.trim()}
+                  style={{ padding: '6px 12px' }}
+                >
+                  {savingAddr ? <span className="spinner spinner-sm" /> : <><Check size={14} /> Lưu</>}
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => { setAddingNew(false); setNewAddr('') }}
+                  style={{ color: 'var(--muted)', padding: '6px 10px' }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── Stats ─────────────────────────────────────────────────────────── */}
       {!loadingOrders && (
         <div className="stat-grid section fade-in">
           <div className="stat-card">
@@ -103,7 +298,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Recent Orders */}
+      {/* ── Recent Orders ──────────────────────────────────────────────────── */}
       <div className="section fade-in">
         <div className="page-header" style={{ marginBottom: 16 }}>
           <h2 style={{ marginBottom: 0 }}>Đơn hàng gần đây</h2>
