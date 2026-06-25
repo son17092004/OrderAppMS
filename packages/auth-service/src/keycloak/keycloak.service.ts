@@ -67,7 +67,7 @@ export class KeycloakService {
   }
 
   /**
-   * Introspect token against Keycloak — checks if session is still active (Q3 answer)
+   * Introspect token against Keycloak — checks if session is still active
    */
   async introspectToken(token: string): Promise<{ active: boolean } & Record<string, unknown>> {
     try {
