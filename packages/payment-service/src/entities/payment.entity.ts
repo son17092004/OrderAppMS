@@ -4,6 +4,7 @@ export enum PaymentStatus {
   PENDING = 'PENDING',
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
 }
 
 @Entity('payments')
@@ -32,6 +33,9 @@ export class Payment {
 
   @Column({ name: 'transaction_id', nullable: true })
   transactionId: string;
+
+  @Column({ name: 'refund_id', nullable: true })
+  refundId: string;
 
   @Column({ name: 'failure_reason', nullable: true })
   failureReason: string;

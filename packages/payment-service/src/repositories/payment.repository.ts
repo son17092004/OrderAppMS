@@ -34,11 +34,26 @@ export class PaymentRepository {
     return this.findById(id);
   }
 
+  async updateRefunded(id: string, refundId: string): Promise<Payment | null> {
+    await this.typeOrmPaymentRepository.update(id, {
+      status: PaymentStatus.REFUNDED,
+      refundId,
+    });
+    return this.findById(id);
+  }
+
   async findById(id: string): Promise<Payment | null> {
     return this.typeOrmPaymentRepository.findOne({ where: { id } });
   }
 
   async findByOrderId(orderId: string): Promise<Payment | null> {
     return this.typeOrmPaymentRepository.findOne({ where: { orderId } });
+  }
+
+  async findByUserId(userId: string): Promise<Payment[]> {
+    return this.typeOrmPaymentRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
   }
 }
